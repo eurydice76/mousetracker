@@ -11,6 +11,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 
 import mousetracker
 from mousetracker.__pkginfo__ import __version__
+from mousetracker.gui.widgets.logger_widget import QTextEditLogger
 from mousetracker.kernel.utils.progress_bar import progress_bar
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -48,11 +49,30 @@ class MainWindow(QtWidgets.QMainWindow):
 
         file_menu = menubar.addMenu('&File')
 
+        file_action = QtWidgets.QAction('&Open mousetracker files', self)
+        file_action.setShortcut('Ctrl+O')
+        file_action.setStatusTip('Open mousetracker files')
+        file_action.triggered.connect(self.on_open_mousetracker_files)
+        file_menu.addAction(file_action)
+
+        file_menu.addSeparator()
+
+        exit_action = QtWidgets.QAction('&Exit', self)
+        exit_action.setShortcut('Ctrl+Q')
+        exit_action.setStatusTip('Exit mousetracker')
+        exit_action.triggered.connect(self.on_quit_application)
+        file_menu.addAction(exit_action)
+
     def _build_widgets(self):
         """Build the widgets.
         """
 
         self._main_frame = QtWidgets.QFrame(self)
+
+        self._logger = QTextEditLogger(self)
+        self._logger.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+        logging.getLogger().addHandler(self._logger)
+        logging.getLogger().setLevel(logging.INFO)
 
         self.setCentralWidget(self._main_frame)
 
@@ -83,6 +103,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self._build_menu()
 
         self._build_events()
+
+    def on_open_mousetracker_files(self):
+        """Event handler which opens a dialog for selecting data files.
+        """
 
     def on_quit_application(self):
         """Event handler which quits the application.
