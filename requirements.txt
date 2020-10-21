@@ -2,3 +2,5 @@ matplotlib
 numpy
 pandas
 PyQt5
+pyyaml
+xlrd
