@@ -7,11 +7,11 @@ from mousetracker.gui.views.copy_pastable_tableview import CopyPastableTableView
 from mousetracker.kernel.models.pandas_data_model import PandasDataModel
 
 
-class StatisticsWidget(QtWidgets.QWidget):
+class SummaryWidget(QtWidgets.QWidget):
 
     def __init__(self, *args, **kwargs):
 
-        super(StatisticsWidget, self).__init__(*args, **kwargs)
+        super(SummaryWidget, self).__init__(*args, **kwargs)
 
         self._init_ui()
 
