@@ -4,3 +4,4 @@ pandas
 PyQt5
 pyyaml
 xlrd
+scikit_posthocs
