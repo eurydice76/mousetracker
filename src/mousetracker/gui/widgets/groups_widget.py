@@ -4,9 +4,10 @@ import logging
 from PyQt5 import QtCore, QtWidgets
 
 from mousetracker.gui.dialogs.group_contents_dialog import GroupContentsDialog
+from mousetracker.gui.dialogs.plot_dialog import PlotDialog
 from mousetracker.gui.views.droppable_listview import DroppableListView
 from mousetracker.gui.views.groups_listview import GroupsListView
-from mousetracker.gui.widgets.plot_widget import PlotWidget
+from mousetracker.gui.widgets.student_tests_widget import StudentTestsWidget
 from mousetracker.gui.widgets.summary_widget import SummaryWidget
 from mousetracker.kernel.models.available_samples_model import AvailableSamplesModel
 from mousetracker.kernel.models.excel_files_model import ExcelFilesModel
@@ -28,9 +29,10 @@ class GroupsWidget(QtWidgets.QWidget):
         """
 
         self._new_group_pushbutton.clicked.connect(self.on_create_new_group)
+        self._sort_groups_pushbutton.clicked.connect(self.on_sort_groups)
         self._reset_groups_pushbutton.clicked.connect(self.on_clear)
-        self._groups_listview.doubleClicked.connect(self.on_display_group_contents)
-        self._compute_averages_pushbutton.clicked.connect(self.on_compute_averages)
+        self._groups_listview.model().display_group_contents.connect(self.on_display_group_contents)
+        self._compute_statistics_pushbutton.clicked.connect(self.on_compute_statistics)
 
     def _build_layout(self):
         """Build the layout of the widget.
@@ -48,6 +50,7 @@ class GroupsWidget(QtWidgets.QWidget):
         vlayout = QtWidgets.QVBoxLayout()
         vlayout.addWidget(QtWidgets.QLabel('Created groups'))
         vlayout.addWidget(self._groups_listview)
+        vlayout.addWidget(self._sort_groups_pushbutton)
         vlayout.addWidget(self._new_group_pushbutton)
         vlayout.addWidget(self._reset_groups_pushbutton)
         groups_layout.addLayout(vlayout)
@@ -63,7 +66,7 @@ class GroupsWidget(QtWidgets.QWidget):
 
         hlayout.addWidget(self._selected_property_label)
         hlayout.addWidget(self._selected_property_combobox, stretch=1)
-        hlayout.addWidget(self._compute_averages_pushbutton, stretch=3)
+        hlayout.addWidget(self._compute_statistics_pushbutton, stretch=3)
 
         main_layout.addLayout(hlayout, stretch=1)
 
@@ -82,12 +85,14 @@ class GroupsWidget(QtWidgets.QWidget):
         self._available_samples_listview.setModel(AvailableSamplesModel(self))
 
         self._groups_listview = GroupsListView()
-        self._groups_listview.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
         self._groups_listview.setSelectionMode(QtWidgets.QListView.SingleSelection)
+        self._groups_listview.setModel(GroupsModel(self))
 
         self._samples_per_group_listview = DroppableListView(self._available_samples_listview.model(), self)
         self._samples_per_group_listview.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
         self._samples_per_group_listview.setSelectionMode(QtWidgets.QListView.ExtendedSelection)
+
+        self._sort_groups_pushbutton = QtWidgets.QPushButton('Sort groups')
 
         self._new_group_pushbutton = QtWidgets.QPushButton('New group')
 
@@ -96,14 +101,15 @@ class GroupsWidget(QtWidgets.QWidget):
         self._selected_property_label = QtWidgets.QLabel('Property')
         self._selected_property_combobox = QtWidgets.QComboBox()
 
-        self._compute_averages_pushbutton = QtWidgets.QPushButton('Compute statistics')
+        self._compute_statistics_pushbutton = QtWidgets.QPushButton('Compute statistics')
 
         self._tabs = QtWidgets.QTabWidget(self)
 
         self._summary_widget = SummaryWidget(self)
-        self._plot_widget = PlotWidget(self)
+        self._student_tests_widget = StudentTestsWidget(self)
+
         self._tabs.addTab(self._summary_widget, 'Summary')
-        self._tabs.addTab(self._plot_widget, 'Plot')
+        self._tabs.addTab(self._student_tests_widget, 'Student tests')
 
     def _init_ui(self):
         """Initialize the ui.
@@ -127,8 +133,8 @@ class GroupsWidget(QtWidgets.QWidget):
 
         return self._groups_listview.model()
 
-    def on_compute_averages(self):
-        """Event handler which computes the averages based on the predefined groups.
+    def on_compute_statistics(self):
+        """Event handler which computes the statistics for the defined groups.
         """
 
         selected_property = self._selected_property_combobox.currentText()
@@ -137,13 +143,17 @@ class GroupsWidget(QtWidgets.QWidget):
             logging.error('No excel files selected')
             return
 
-        data_frames = groups_model.compute_averages(selected_property)
-        if data_frames is None:
+        groups_model.compute_statistics(selected_property)
+        reduced_data = groups_model.reduced_data
+        if not reduced_data:
             return
 
-        self._statistics_widget.set_data_frames(data_frames)
+        self._summary_widget.set_data_frames(reduced_data)
+        self._student_tests_widget.set_student_tests(groups_model.student_tests)
 
-        self._plot_widget.set_data_frames(data_frames)
+        dialog = PlotDialog(self)
+        dialog.set_dataframes(reduced_data)
+        dialog.show()
 
     def on_create_new_group(self):
         """Event handler which creates a new group.
@@ -259,3 +269,13 @@ class GroupsWidget(QtWidgets.QWidget):
 
         self._selected_property_combobox.clear()
         self._selected_property_combobox.addItems(properties)
+
+    def on_sort_groups(self):
+        """Event handler which sort the groups in alphabetical order.
+        """
+
+        groups_model = self._groups_listview.model()
+        if groups_model is None:
+            return
+
+        groups_model.sort()

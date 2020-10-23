@@ -43,3 +43,20 @@ class GroupsListView(QtWidgets.QListView):
 
         else:
             super(GroupsListView, self).keyPressEvent(event)
+
+    def mousePressEvent(self, event):
+        """Event handler for mouse interaction.
+
+        Args:
+            event (PyQt5.QtGui.QMouseEvent): the mouse event
+        """
+
+        super(GroupsListView, self).mousePressEvent(event)
+
+        if event.type() == QtCore.QEvent.MouseButtonPress:
+            if event.button() == QtCore.Qt.RightButton:
+                groups_model = self.model()
+                if groups_model is None:
+                    return
+                groups_model.on_display_group_contents(self.currentIndex())
+                return

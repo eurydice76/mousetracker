@@ -183,16 +183,15 @@ class MainWindow(QtWidgets.QMainWindow):
             e_index = excel_files_model.index(r, 0)
             excel_file = excel_files_model.data(e_index, QtCore.Qt.DisplayRole)
             groups_model = excel_files_model.data(e_index, ExcelFilesModel.group_model)
-            groups = []
-            for rr in range(groups_model.rowCount()):
-                g_index = groups_model.index(rr, 0)
-                group_name = groups_model.data(g_index, QtCore.Qt.DisplayRole)
-                group_contents_model = groups_model.data(g_index, GroupsModel.model)
-                contents = [int(group_contents_model.data(group_contents_model.index(i, 0), QtCore.Qt.DisplayRole))
-                            for i in range(group_contents_model.rowCount())]
-                groups.append((group_name, contents))
 
-            exportable_data.append({'excel_file': excel_file, 'groups': groups})
+            groups = sorted(groups_model.groups, key=lambda x: x[0])
+
+            exported_groups = []
+            for group, model, selected in groups:
+                contents = [int(model.data(model.index(i, 0), QtCore.Qt.DisplayRole)) for i in range(model.rowCount())]
+                exported_groups.append((group, contents, selected))
+
+            exportable_data.append({'excel_file': excel_file, 'groups': exported_groups, 'group_control': groups_model.group_control})
 
         with open(yaml_file, 'w') as f:
             yaml.dump(exportable_data, f)
@@ -214,19 +213,19 @@ class MainWindow(QtWidgets.QMainWindow):
             imported_groups = yaml.load(f, Loader=yaml.FullLoader)
 
         excel_files_model = self._excel_files_listview.model()
-
         for group_dict in imported_groups:
             excel_files_model.add_excel_file(group_dict['excel_file'])
             row = excel_files_model.rowCount() - 1
             e_index = excel_files_model.index(row, 0)
             groups_model = excel_files_model.data(e_index, ExcelFilesModel.group_model)
-            for group_name, group_contents in group_dict['groups']:
-                groups_model.add_group(group_name)
+            for group_name, group_contents, selected in group_dict['groups']:
+                groups_model.add_group(group_name, selected=selected)
                 g_row = groups_model.rowCount() - 1
                 g_index = groups_model.index(g_row, 0)
                 group_contents_model = groups_model.data(g_index, GroupsModel.model)
                 for item in group_contents:
                     group_contents_model.add_item(item)
+            groups_model.group_control = group_dict['group_control']
 
     def on_open_mousetracker_files(self):
         """Event handler which opens a dialog for selecting data files.
