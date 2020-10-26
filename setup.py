@@ -11,6 +11,8 @@ scripts = glob.glob(os.path.join('scripts', '*'))
 with open('requirements.txt', 'r') as fin:
     install_requires = fin.readlines()
 
+scripts = glob.glob(os.path.join('scripts', 'mousetracker'))
+
 setup(name="mousetracker",
       version=package_info["__version__"],
       description=package_info["__description__"],
@@ -25,4 +27,4 @@ setup(name="mousetracker",
       include_package_data=True,
       package_dir={'': 'src'},
       platforms=['Unix', 'Windows'],
-      entry_points={'gui_scripts': ['mousetracker = mousetracker.scripts.run_mousetracker:main']})
+      scripts=scripts)

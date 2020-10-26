@@ -1,3 +1,7 @@
+version 0.0.3
+--------------
+* UPDATED fall back to the old setup.py mechanism for script
+
 version 0.0.2
 --------------
 * ADDED   student test statistics
