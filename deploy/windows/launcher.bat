@@ -7,6 +7,4 @@ set PYTHONPATH=
 
 set dirname="%~dp0"
 
-set dirname="%~dp0"
-
 start /B /D %dirname% pythonw.exe Scripts\mousetracker

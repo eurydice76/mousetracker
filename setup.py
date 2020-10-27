@@ -6,8 +6,6 @@ from setuptools import find_packages, setup
 package_info = {}
 exec(open("src/mousetracker/__pkginfo__.py").read(), {}, package_info)
 
-scripts = glob.glob(os.path.join('scripts', '*'))
-
 with open('requirements.txt', 'r') as fin:
     install_requires = fin.readlines()
 

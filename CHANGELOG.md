@@ -1,3 +1,7 @@
+version 0.0.4
+--------------
+* FIXED   the egg-info directory are now included in the NSIS distro
+
 version 0.0.3
 --------------
 * UPDATED fall back to the old setup.py mechanism for script
