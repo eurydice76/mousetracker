@@ -20,4 +20,4 @@ __repo__ = "https://gitlab.com/irba/mousetracker"
 
 __license__ = "GPL 3"
 
-__version__ = "0.0.4"
+__version__ = "0.0.5"

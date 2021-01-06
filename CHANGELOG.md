@@ -1,3 +1,8 @@
+version 0.0.5
+--------------
+* FIXED   the application was crashing when the user right clicked on a group
+* FIXED   the application was crashing when the excel file could be imported properly
+
 version 0.0.4
 --------------
 * FIXED   the egg-info directory are now included in the NSIS distro
