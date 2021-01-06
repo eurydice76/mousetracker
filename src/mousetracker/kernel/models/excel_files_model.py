@@ -1,4 +1,5 @@
 import logging
+import os
 
 import numpy as np
 
@@ -7,6 +8,10 @@ import pandas as pd
 from PyQt5 import QtCore
 
 from mousetracker.kernel.models.groups_model import GroupsModel
+
+
+class ExcelFileModelError(Exception):
+    pass
 
 
 class ExcelFilesModel(QtCore.QAbstractListModel):
@@ -35,35 +40,39 @@ class ExcelFilesModel(QtCore.QAbstractListModel):
             logging.info('The file {} is already stored in the model'.format(excel_file))
             return
 
-        data_frame = pd.read_excel(excel_file, sheet_name='Groupe', header=(0, 1))
+        # Any exception must be caught here
+        try:
+            data_frame = pd.read_excel(excel_file, sheet_name='Groupe', header=(0, 1))
 
-        n_mice = len(data_frame.index)//5
-
-        for i in range(n_mice):
-            data_frame.loc[5*i+1:5*(i+1)-1, ('Unnamed: 0_level_0', 'Souris')] = data_frame.loc[5*i, ('Unnamed: 0_level_0', 'Souris')]
-        data_frame[('Unnamed: 0_level_0', 'Souris')] = data_frame[('Unnamed: 0_level_0', 'Souris')].astype(int)
-
-        n_days = (len(data_frame.columns) - 1)//11
-
-        for i in range(n_days):
-            day = 'J{:d}'.format(i)
+            n_mice = len(data_frame.index)//5
 
             for i in range(n_mice):
-                data_frame.loc[5*i+1:5*(i+1)-1, (day, 'Poids')] = data_frame.loc[5*i, (day, 'Poids')]
+                data_frame.loc[5*i+1:5*(i+1)-1, ('Unnamed: 0_level_0', 'Souris')] = data_frame.loc[5*i, ('Unnamed: 0_level_0', 'Souris')]
+            data_frame[('Unnamed: 0_level_0', 'Souris')] = data_frame[('Unnamed: 0_level_0', 'Souris')].astype(int)
 
-            data_frame[(day, 'Erythème')] = data_frame[[(day, 'Erythème'), (day, 'Erythème.1')]].agg(np.nanmean, axis=1)
-            data_frame = data_frame.drop((day, 'Erythème.1'), axis=1)
-            data_frame[(day, 'ITA')] = data_frame[[(day, 'ITA'), (day, 'ITA.1')]].agg(np.nanmean, axis=1)
-            data_frame = data_frame.drop((day, 'ITA.1'), axis=1)
-            data_frame[(day, 'Vapometer')] = data_frame[[(day, 'Vapometer'), (day, 'Vapometer.1')]].agg(np.nanmean, axis=1)
-            data_frame = data_frame.drop((day, 'Vapometer.1'), axis=1)
-            data_frame[(day, 'Moister Meter')] = data_frame[[(day, 'Moister Meter'), (day, 'Moister Meter.1')]].agg(np.nanmean, axis=1)
-            data_frame = data_frame.drop((day, 'Moister Meter.1'), axis=1)
+            n_days = (len(data_frame.columns) - 1)//11
 
-        columns = data_frame.columns
-        columns = ['-'.join(col) for col in columns]
-        columns[0] = 'Souris'
-        data_frame.columns = columns
+            for i in range(n_days):
+                day = 'J{:d}'.format(i)
+
+                for i in range(n_mice):
+                    data_frame.loc[5*i+1:5*(i+1)-1, (day, 'Poids')] = data_frame.loc[5*i, (day, 'Poids')]
+
+                data_frame[(day, 'Erythème')] = data_frame[[(day, 'Erythème'), (day, 'Erythème.1')]].agg(np.nanmean, axis=1)
+                data_frame = data_frame.drop((day, 'Erythème.1'), axis=1)
+                data_frame[(day, 'ITA')] = data_frame[[(day, 'ITA'), (day, 'ITA.1')]].agg(np.nanmean, axis=1)
+                data_frame = data_frame.drop((day, 'ITA.1'), axis=1)
+                data_frame[(day, 'Vapometer')] = data_frame[[(day, 'Vapometer'), (day, 'Vapometer.1')]].agg(np.nanmean, axis=1)
+                data_frame = data_frame.drop((day, 'Vapometer.1'), axis=1)
+                data_frame[(day, 'Moister Meter')] = data_frame[[(day, 'Moister Meter'), (day, 'Moister Meter.1')]].agg(np.nanmean, axis=1)
+                data_frame = data_frame.drop((day, 'Moister Meter.1'), axis=1)
+
+            columns = data_frame.columns
+            columns = ['-'.join(col) for col in columns]
+            columns[0] = 'Souris'
+            data_frame.columns = columns
+        except:
+            raise ExcelFileModelError('The file {} could not be properly imported'.format(excel_file))
 
         self._excel_files.append((excel_file, data_frame, GroupsModel(data_frame, self)))
 

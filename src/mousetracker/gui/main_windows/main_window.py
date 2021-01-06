@@ -15,7 +15,7 @@ import mousetracker
 from mousetracker.__pkginfo__ import __version__
 from mousetracker.gui.widgets.groups_widget import GroupsWidget
 from mousetracker.gui.widgets.logger_widget import QTextEditLogger
-from mousetracker.kernel.models.excel_files_model import ExcelFilesModel
+from mousetracker.kernel.models.excel_files_model import ExcelFilesModel, ExcelFileModelError
 from mousetracker.kernel.models.groups_model import GroupsModel
 from mousetracker.kernel.models.pandas_data_model import PandasDataModel
 from mousetracker.kernel.utils.progress_bar import progress_bar
@@ -214,7 +214,15 @@ class MainWindow(QtWidgets.QMainWindow):
 
         excel_files_model = self._excel_files_listview.model()
         for group_dict in imported_groups:
-            excel_files_model.add_excel_file(group_dict['excel_file'])
+
+            excel_file = group_dict['excel_file']
+
+            try:
+                excel_files_model.add_excel_file(excel_file)
+            except ExcelFileModelError as e:
+                logging.error(str(e))
+                continue
+
             row = excel_files_model.rowCount() - 1
             e_index = excel_files_model.index(row, 0)
             groups_model = excel_files_model.data(e_index, ExcelFilesModel.group_model)

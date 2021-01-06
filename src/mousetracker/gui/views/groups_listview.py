@@ -58,5 +58,5 @@ class GroupsListView(QtWidgets.QListView):
                 groups_model = self.model()
                 if groups_model is None:
                     return
-                groups_model.on_display_group_contents(self.currentIndex())
+                groups_model.display_group_contents.emit(self.currentIndex())
                 return
