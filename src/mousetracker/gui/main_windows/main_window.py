@@ -17,7 +17,7 @@ from mousetracker.gui.widgets.groups_widget import GroupsWidget
 from mousetracker.gui.widgets.logger_widget import QTextEditLogger
 from mousetracker.kernel.models.excel_files_model import ExcelFilesModel, ExcelFileModelError
 from mousetracker.kernel.models.groups_model import GroupsModel
-from mousetracker.kernel.models.pandas_data_model import PandasDataModel
+from mousetracker.kernel.models.mouse_monitoring_model import MouseMonitoringModel
 from mousetracker.kernel.utils.progress_bar import progress_bar
 
 
@@ -117,7 +117,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._tabs = QtWidgets.QTabWidget(self)
 
         self._excel_file_contents_tableview = QtWidgets.QTableView(self)
-        self._excel_file_contents_tableview.setModel(PandasDataModel(self))
+        self._excel_file_contents_tableview.setModel(MouseMonitoringModel(self))
 
         self._groups_widgets = GroupsWidget(self)
 
