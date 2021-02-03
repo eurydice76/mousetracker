@@ -1,3 +1,7 @@
+version 0.0.6
+--------------
+* ADDED   the mouse for which there is a weight loss of more than 10% are now colored in red
+
 version 0.0.5
 --------------
 * FIXED   the application was crashing when the user right clicked on a group
