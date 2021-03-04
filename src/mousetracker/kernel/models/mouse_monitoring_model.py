@@ -35,20 +35,23 @@ class MouseMonitoringModel(PandasDataModel):
             row = index.row()
 
             # Compute the mouse number as it appears in the 'Souris' column
-            mouse = 1 + row//5
+            mouse = self._data_frame.iloc[row, 0]
             df = self._data_frame[self._data_frame['Souris'] == mouse]
             n_days = (len(df.columns) - 1)//7
             weight_columns = list(range(1, n_days*7, 7))
 
             weights = df.iloc[0, weight_columns]
-            for i in range(n_days-1):
-                old_weight = weights[i]
-                new_weight = weights[i+1]
-                ratio = (old_weight - new_weight)/old_weight
+            initial_weight = weights[0]
+            for i in range(1, n_days):
+                new_weight = weights[i]
+                ratio = (initial_weight - new_weight)/initial_weight
                 # If there is a weight loss of more than 10% color the cell in red
-                if ratio <= -0.1:
-                    return QtGui.QBrush(QtCore.Qt.red)
-
+                if ratio >= 0.2:
+                    return QtGui.QBrush(QtGui.QColor(100, 0, 0))
+                elif ratio >= 0.15 and ratio < 0.2:
+                    return QtGui.QBrush(QtGui.QColor(150, 0, 0))
+                elif ratio >= 0.05 and ratio < 0.15:
+                    return QtGui.QBrush(QtGui.QColor(200, 0, 0))
             try:
                 return QtGui.QBrush(QtGui.QColor(255, 119, 51)) if np.isnan(float(value)) else QtGui.QBrush(QtCore.Qt.white)
             except ValueError:

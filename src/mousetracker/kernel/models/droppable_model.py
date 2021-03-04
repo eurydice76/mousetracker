@@ -52,6 +52,19 @@ class DroppableModel(QtCore.QAbstractListModel):
         if role == QtCore.Qt.DisplayRole:
             return self._items[idx]
 
+    def flags(self, index):
+        """Return the flags of an itme with a given index.
+
+        Args:
+            index (PyQt5.QtCore.QModelIndex): the index
+
+        Returns:
+            int: the flag
+        """
+
+        if index.isValid():
+            return QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsDragEnabled | QtCore.Qt.ItemIsEnabled
+
     def remove_items(self, items):
         """Remove some items from the model.
 

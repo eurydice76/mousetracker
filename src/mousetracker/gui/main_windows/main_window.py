@@ -1,5 +1,5 @@
 """This modules implements the following classes:
-    _ MainWindow
+    - MainWindow
 """
 
 import copy
@@ -188,7 +188,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
             exported_groups = []
             for group, model, selected in groups:
-                contents = [int(model.data(model.index(i, 0), QtCore.Qt.DisplayRole)) for i in range(model.rowCount())]
+                contents = [model.data(model.index(i, 0), QtCore.Qt.DisplayRole) for i in range(model.rowCount())]
                 exported_groups.append((group, contents, selected))
 
             exportable_data.append({'excel_file': excel_file, 'groups': exported_groups, 'group_control': groups_model.group_control})
@@ -295,7 +295,7 @@ class MainWindow(QtWidgets.QMainWindow):
         excel_file_contents_model = self._excel_file_contents_tableview.model()
         excel_file_contents_model.set_data_frame(data_frame)
 
-        mice = sorted(set(data_frame['Souris']))
+        mice = data_frame['Souris'][0::5].to_list()
 
         self.set_groups_model.emit(groups_model, mice)
 

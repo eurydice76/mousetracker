@@ -46,7 +46,7 @@ class DroppableListView(QtWidgets.QListView):
 
         self._source_model.remove_items(dragged_items)
 
-        # # Drop only those items which are not present in this widget
+        # Drop only those items which are not present in this widget
         current_items = [target_model.data(target_model.index(i), QtCore.Qt.DisplayRole) for i in range(target_model.rowCount())]
         for name in dragged_items:
             if name in current_items:
@@ -63,11 +63,17 @@ class DroppableListView(QtWidgets.QListView):
 
         if event.key() == QtCore.Qt.Key_Delete:
 
+            if self._source_model is None:
+                return
+
             model = self.model()
             if model is None:
                 return
 
             selected_samples = [model.data(index, QtCore.Qt.DisplayRole) for index in self.selectedIndexes()]
+
+            for sample in selected_samples:
+                self._source_model.add_item(sample)
 
             model.remove_items(selected_samples)
             if model.rowCount() > 0:

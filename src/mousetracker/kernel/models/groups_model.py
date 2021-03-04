@@ -63,7 +63,7 @@ class GroupsModel(QtCore.QAbstractListModel):
         """
 
         witness_group_name, witness_group_model, _ = self._groups[self._group_control]
-        witness_group = [int(witness_group_model.data(witness_group_model.index(i, 0), QtCore.Qt.DisplayRole))
+        witness_group = [witness_group_model.data(witness_group_model.index(i, 0), QtCore.Qt.DisplayRole)
                          for i in range(witness_group_model.rowCount())]
 
         n_days = (len(self._excel_dataframe.columns) - 1)//7
@@ -87,7 +87,7 @@ class GroupsModel(QtCore.QAbstractListModel):
                     if i == self._group_control:
                         continue
 
-                    group_contents = [int(model.data(model.index(i, 0), QtCore.Qt.DisplayRole)) for i in range(model.rowCount())]
+                    group_contents = [model.data(model.index(i, 0), QtCore.Qt.DisplayRole) for i in range(model.rowCount())]
 
                     fylter = self._excel_dataframe['Souris'].isin(group_contents)
                     for day in days:
@@ -114,9 +114,6 @@ class GroupsModel(QtCore.QAbstractListModel):
         days = ['J{}'.format(i) for i in range(n_days)]
         properties = ['J{}-{}'.format(i, selected_property) for i in range(n_days)]
 
-        # The target zones that must be used
-        target_zones = (('A', 'B', 'C', 'D'), ('A', 'B'), ('C', 'D'))
-
         for i, (group_name, model, selected) in enumerate(self._groups):
 
             if i == self._group_control:
@@ -124,10 +121,10 @@ class GroupsModel(QtCore.QAbstractListModel):
 
             if not selected:
                 continue
-            group_contents = [int(model.data(model.index(i, 0), QtCore.Qt.DisplayRole)) for i in range(model.rowCount())]
+            group_contents = [model.data(model.index(i, 0), QtCore.Qt.DisplayRole) for i in range(model.rowCount())]
 
             target_df = pd.DataFrame(index=days)
-            for tz in target_zones:
+            for tz in zones:
                 fylter = self._excel_dataframe['Souris'].isin(group_contents)
                 for day in days:
                     zone = '{}-Zone'.format(day)
@@ -172,7 +169,7 @@ class GroupsModel(QtCore.QAbstractListModel):
                         continue
 
                     selected_group_names.append(group_name)
-                    mice = [int(model.data(model.index(i, 0), QtCore.Qt.DisplayRole)) for i in range(model.rowCount())]
+                    mice = [model.data(model.index(i, 0), QtCore.Qt.DisplayRole) for i in range(model.rowCount())]
 
                     selected_zone = control_zone if i == self._group_control else target_zone
 

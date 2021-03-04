@@ -67,10 +67,18 @@ class ExcelFilesModel(QtCore.QAbstractListModel):
                 data_frame[(day, 'Moister Meter')] = data_frame[[(day, 'Moister Meter'), (day, 'Moister Meter.1')]].agg(np.nanmean, axis=1)
                 data_frame = data_frame.drop((day, 'Moister Meter.1'), axis=1)
 
+            # Check and correct for redundant mice names
+            mice_names = [data_frame.iloc[5*i, 0] for i in range(n_mice)]
+            mice_names = [str(v) + '_' + str(mice_names[:i].count(v) + 1) if mice_names.count(v) > 1 else str(v) for i, v in enumerate(mice_names)]
+            for i in range(n_mice):
+                data_frame.iloc[5*i:5*i+5, 0] = mice_names[i]
+
             columns = data_frame.columns
             columns = ['-'.join(col) for col in columns]
             columns[0] = 'Souris'
             data_frame.columns = columns
+
+            data_frame = data_frame.round(1)
         except:
             raise ExcelFileModelError('The file {} could not be properly imported'.format(excel_file))
 

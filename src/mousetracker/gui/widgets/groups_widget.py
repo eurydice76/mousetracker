@@ -78,7 +78,7 @@ class GroupsWidget(QtWidgets.QWidget):
         """Build the widgets composing the widget.
         """
 
-        self._available_samples_listview = QtWidgets.QListView()
+        self._available_samples_listview = DroppableListView(None, self)
         self._available_samples_listview.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
         self._available_samples_listview.setSelectionMode(QtWidgets.QListView.ExtendedSelection)
         self._available_samples_listview.setDragEnabled(True)
@@ -91,6 +91,7 @@ class GroupsWidget(QtWidgets.QWidget):
         self._samples_per_group_listview = DroppableListView(self._available_samples_listview.model(), self)
         self._samples_per_group_listview.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
         self._samples_per_group_listview.setSelectionMode(QtWidgets.QListView.ExtendedSelection)
+        self._samples_per_group_listview.setDragEnabled(True)
 
         self._sort_groups_pushbutton = QtWidgets.QPushButton('Sort groups')
 
@@ -128,7 +129,7 @@ class GroupsWidget(QtWidgets.QWidget):
         """Returns the underlying model.
 
         Returns:
-            lightcycle.kernel.models.groups_model.GroupsModel: the model
+            mousetracker.kernel.models.groups_model.GroupsModel: the model
         """
 
         return self._groups_listview.model()
@@ -187,7 +188,6 @@ class GroupsWidget(QtWidgets.QWidget):
         selected_group_model = groups_model.data(index, GroupsModel.model)
 
         mice = [selected_group_model.data(selected_group_model.index(i), QtCore.Qt.DisplayRole) for i in range(selected_group_model.rowCount())]
-        mice = [int(mouse) for mouse in mice]
 
         selected_property = self._selected_property_combobox.currentText()
 
@@ -227,10 +227,10 @@ class GroupsWidget(QtWidgets.QWidget):
         self._samples_per_group_listview.set_source_model(available_samples_model)
 
     def on_select_group(self, idx):
-        """Event handler which select a new group.
+        """Event handler called when the user selects a new group.
 
         Args:
-            idx (PyQt5.QtCore.QModelIndex): the indexes selection
+            idx (PyQt5.QtCore.QModelIndex): the index of the selected group
         """
 
         groups_model = self._groups_listview.model()
@@ -241,9 +241,11 @@ class GroupsWidget(QtWidgets.QWidget):
 
         self._samples_per_group_listview.setModel(samples_per_group_model)
 
-    def on_set_groups_model(self, groups_model, mice):
+        self._available_samples_listview.set_source_model(samples_per_group_model)
 
-        mice = set([int(v) for v in mice])
+    def on_set_groups_model(self, groups_model, mice):
+        """
+        """
 
         already_used_mice = []
         for r in range(groups_model.rowCount()):
@@ -251,9 +253,9 @@ class GroupsWidget(QtWidgets.QWidget):
             samples_per_group_model = groups_model.data(index, GroupsModel.model)
             for rr in range(samples_per_group_model.rowCount()):
                 idx = samples_per_group_model.index(rr, 0)
-                already_used_mice.append(int(samples_per_group_model.data(idx, QtCore.Qt.DisplayRole)))
-        mice.difference_update(already_used_mice)
-        mice = sorted(mice)
+                already_used_mice.append(samples_per_group_model.data(idx, QtCore.Qt.DisplayRole))
+
+        mice = [mouse for mouse in mice if not mouse in already_used_mice]
 
         available_samples_model = self._available_samples_listview.model()
         available_samples_model.samples = mice

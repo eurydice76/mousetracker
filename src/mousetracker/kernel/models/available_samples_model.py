@@ -13,6 +13,22 @@ class AvailableSamplesModel(QtCore.QAbstractListModel):
 
         self._samples_default = []
 
+    def add_item(self, item):
+        """Add an item to the model.
+
+        Args:
+            sample (str): the sample
+        """
+
+        if item in self._samples:
+            return
+
+        self.beginInsertRows(QtCore.QModelIndex(), self.rowCount(), self.rowCount())
+
+        self._samples.append(item)
+
+        self.endInsertRows()
+
     def clear(self):
 
         self._samples = []
@@ -62,9 +78,6 @@ class AvailableSamplesModel(QtCore.QAbstractListModel):
             items (list of str): the items to remove
         """
 
-        # The items are are provided as a list of str. Cast them to int.
-        items = [int(item) for item in items]
-
         indexes = []
 
         for item in items:
@@ -102,7 +115,7 @@ class AvailableSamplesModel(QtCore.QAbstractListModel):
     @samples.setter
     def samples(self, samples):
 
-        self._samples = sorted(samples)
+        self._samples = samples
 
         self._samples_default = copy.copy(samples)
 

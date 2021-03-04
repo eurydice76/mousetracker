@@ -52,10 +52,8 @@ class PlotDialog(QtWidgets.QDialog):
             for index in dataframe.index:
                 self._axes.plot(dataframe.loc[index], linestyle='-', marker='^', label='{} - {}'.format(group_name, index))
 
-        # self._means_and_errors_axes.set_xticklabels(statistics_per_gene.columns, rotation=90)
         for tick in self._axes.xaxis.get_major_ticks():
             tick.label.set_fontsize(8)
-            tick.label.set_rotation('vertical')
 
         self._axes.legend()
         self._canvas.draw()
