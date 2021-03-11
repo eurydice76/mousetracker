@@ -9,12 +9,15 @@ import sys
 
 import yaml
 
+from openpyxl import load_workbook
+
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 import mousetracker
 from mousetracker.__pkginfo__ import __version__
 from mousetracker.gui.widgets.groups_widget import GroupsWidget
 from mousetracker.gui.widgets.logger_widget import QTextEditLogger
+from mousetracker.gui.widgets.statistics_widget import StatisticsWidget
 from mousetracker.kernel.models.excel_files_model import ExcelFilesModel, ExcelFileModelError
 from mousetracker.kernel.models.groups_model import GroupsModel
 from mousetracker.kernel.models.mouse_monitoring_model import MouseMonitoringModel
@@ -47,6 +50,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self._excel_files_listview.selectionModel().selectionChanged.connect(self.on_select_excel_file)
         self.set_groups_model.connect(self._groups_widgets.on_set_groups_model)
         self.set_properties.connect(self._groups_widgets.on_set_properties)
+        self._groups_widgets.compute_statistics.connect(self.on_build_statistics_widget)
+        self._tabs.tabCloseRequested.connect(lambda index: self._tabs.removeTab(index))
 
     def _build_layout(self):
         """Build the layout.
@@ -115,6 +120,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._excel_files_listview.setModel(ExcelFilesModel(self))
 
         self._tabs = QtWidgets.QTabWidget(self)
+        self._tabs.setTabsClosable(True)
 
         self._excel_file_contents_tableview = QtWidgets.QTableView(self)
         self._excel_file_contents_tableview.setModel(MouseMonitoringModel(self))
@@ -123,6 +129,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self._tabs.addTab(self._excel_file_contents_tableview, 'Data')
         self._tabs.addTab(self._groups_widgets, 'Groups')
+
+        self._tabs.tabBar().setTabButton(0, QtWidgets.QTabBar.RightSide, None)
+        self._tabs.tabBar().setTabButton(1, QtWidgets.QTabBar.RightSide, None)
 
         self._logger = QTextEditLogger(self)
         self._logger.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
@@ -164,11 +173,23 @@ class MainWindow(QtWidgets.QMainWindow):
 
         return self._excel_files_listview
 
+    def on_build_statistics_widget(self, selected_property, groups_model):
+        """
+        """
+
+        if groups_model.rowCount() == 0:
+            logging.warning('No groups defined')
+            return
+
+        statistics_widget = StatisticsWidget(selected_property, groups_model, self)
+        self._tabs.addTab(statistics_widget, 'Statistics')
+        self._tabs.setTabsClosable(True)
+
     def on_export_groups(self):
         """Export groups.
         """
 
-        yaml_file = QtWidgets.QFileDialog.getSaveFileName(self, caption='Export group as ...', filter="Excel files (*.yaml *.yml)")
+        yaml_file = QtWidgets.QFileDialog.getSaveFileName(self, caption='Export group as ...', filter="YAML files (*.yaml *.yml)")
         if not yaml_file:
             return
 
@@ -299,5 +320,93 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.set_groups_model.emit(groups_model, mice)
 
-        properties = sorted(set([v.split('-')[1] for v in data_frame.columns[1:]]))
+        properties = sorted(set([v.split('-')[1] for v in data_frame.columns[2:]]))
         self.set_properties.emit(properties)
+
+    def export(self, filename, selected_properties):
+        """
+        """
+
+        # Export the current data to 'data' sheet
+        index = self._excel_files_listview.currentIndex()
+        excel_files_model = self._excel_files_listview.model()
+        dataframe = excel_files_model.data(index, ExcelFilesModel.data_frame)
+        dataframe.to_excel(filename, sheet_name='data', index=False)
+
+        workbook = load_workbook(filename=filename)
+
+        groups_model = self._groups_widgets.groups_listview.model()
+
+        # Export the groups
+        groups_sheet = workbook.create_sheet('groups')
+        comp = 0
+        for group, model, selected in groups_model.groups:
+            if not selected:
+                continue
+            comp += 1
+            groups_sheet.cell(row=1, column=comp).value = group
+            for i in range(model.rowCount()):
+                index = model.index(i, 0)
+                mouse = model.data(index, QtCore.Qt.DisplayRole)
+                groups_sheet.cell(row=i+2, column=comp).value = mouse
+
+        # Export the statistics
+        for prop in selected_properties:
+            statistics_sheet = workbook.create_sheet('statistics {}'.format(prop))
+
+            all_zones = [('A', 'B', 'C', 'D', 'E'), ('A', 'B', 'C', 'D'), ('A', 'B'), ('C', 'D'), ('E',)]
+
+            statistics = groups_model.get_statistics(prop, all_zones)
+
+            comp = 1
+            statistics_sheet.cell(row=comp, column=1).value = 'selected property'
+            statistics_sheet.cell(row=comp, column=2).value = prop
+            for s in ['mean', 'std', 'n']:
+                comp += 1
+                statistics_sheet.cell(row=comp, column=1).value = s
+                for group, df in statistics[s].items():
+                    comp += 1
+                    statistics_sheet.cell(row=comp, column=1).value = group
+                    # Write the column of the dataframe
+                    comp += 1
+                    for i, c in enumerate(df.columns):
+                        statistics_sheet.cell(row=comp, column=i+2).value = c
+                    # Write the index and data of the dataframe
+                    for i in range(len(df.index)):
+                        comp += 1
+                        statistics_sheet.cell(row=comp, column=1).value = df.index[i]
+                        for j in range(len(df.columns)):
+                            statistics_sheet.cell(row=comp, column=j+2).value = df.iloc[i, j]
+                    comp += 1
+
+            # Export the student test to 'student test' sheet
+            student_test_sheet = workbook.create_sheet('student tests {}'.format(prop))
+            comp = 1
+            student_test_sheet.cell(row=comp, column=1).value = 'selected property'
+            student_test_sheet.cell(row=comp, column=2).value = prop
+
+            student_tests = groups_model.get_student_tests(prop, [('A', 'B', 'C', 'D'), ('A', 'B'), ('C', 'D'), ('E',)])
+
+            for zone, df_dict in student_tests.items():
+                comp += 1
+                student_test_sheet.cell(row=comp, column=1).value = zone
+                for day, df in df_dict.items():
+                    comp += 1
+                    student_test_sheet.cell(row=comp, column=1).value = day
+                    # Write the column of the dataframe
+                    comp += 1
+                    for i, c in enumerate(df.columns):
+                        student_test_sheet.cell(row=comp, column=i+2).value = c
+                    # Write the index and data of the dataframe
+                    for i in range(len(df.index)):
+                        comp += 1
+                        student_test_sheet.cell(row=comp, column=1).value = df.index[i]
+                        for j in range(len(df.columns)):
+                            student_test_sheet.cell(row=comp, column=j+2).value = df.iloc[i, j]
+                    comp += 1
+
+        try:
+            workbook.save(filename)
+        except PermissionError as error:
+            logging.error(str(error))
+            return

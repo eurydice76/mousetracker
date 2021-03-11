@@ -37,8 +37,9 @@ class MouseMonitoringModel(PandasDataModel):
             # Compute the mouse number as it appears in the 'Souris' column
             mouse = self._data_frame.iloc[row, 0]
             df = self._data_frame[self._data_frame['Souris'] == mouse]
-            n_days = (len(df.columns) - 1)//7
-            weight_columns = list(range(1, n_days*7, 7))
+            n_days = self._data_frame.n_days
+            n_properties = self._data_frame.n_properties
+            weight_columns = list(range(2, n_days*n_properties, n_properties))
 
             weights = df.iloc[0, weight_columns]
             initial_weight = weights[0]

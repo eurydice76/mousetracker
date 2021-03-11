@@ -5,6 +5,8 @@ class GroupsListView(QtWidgets.QListView):
     """This class implements an interface for listviews onto which data can be dropped in.
     """
 
+    display_group_contents = QtCore.pyqtSignal(QtCore.QModelIndex)
+
     def keyPressEvent(self, event):
         """Event handler for keyboard interaction.
 
@@ -27,20 +29,6 @@ class GroupsListView(QtWidgets.QListView):
                 index = groups_model.index(groups_model.rowCount()-1)
                 self.setCurrentIndex(index)
 
-        elif key == QtCore.Qt.Key_Space:
-
-            groups_model = self.model()
-            if groups_model is None:
-                return
-
-            selected_indexes = self.selectedIndexes()
-            if not selected_indexes:
-                return
-
-            selected_row = selected_indexes[0].row()
-
-            groups_model.group_control = selected_row
-
         else:
             super(GroupsListView, self).keyPressEvent(event)
 
@@ -58,5 +46,5 @@ class GroupsListView(QtWidgets.QListView):
                 groups_model = self.model()
                 if groups_model is None:
                     return
-                groups_model.display_group_contents.emit(self.currentIndex())
+                self.display_group_contents.emit(self.currentIndex())
                 return

@@ -19,8 +19,6 @@ class GroupsModel(QtCore.QAbstractListModel):
 
     selected = QtCore.Qt.UserRole + 2
 
-    display_group_contents = QtCore.pyqtSignal(QtCore.QModelIndex)
-
     def __init__(self, excel_dataframe, *args, **kwargs):
 
         super(GroupsModel, self).__init__(*args, **kwargs)
@@ -28,12 +26,6 @@ class GroupsModel(QtCore.QAbstractListModel):
         self._excel_dataframe = excel_dataframe
 
         self._groups = []
-
-        self._group_control = -1
-
-        self._reduced_data = collections.OrderedDict()
-
-        self._student_tests = collections.OrderedDict()
 
     def add_group(self, group_name, selected=True):
         """Add a new group to the model.
@@ -58,105 +50,73 @@ class GroupsModel(QtCore.QAbstractListModel):
 
         self.reset()
 
-    def _set_gather_control_group_data(self, selected_property, zones):
-        """
+    def get_statistics(self, selected_property, zones):
+        """Average the data for a selected property for different zones
+
+        Args:
+            selected_property (str): the selected property
+            zones (list of tuples): the zones for which the average should be computed
+
+        Returns:
+            collections.OrderedDict: the average data per group
         """
 
-        witness_group_name, witness_group_model, _ = self._groups[self._group_control]
-        witness_group = [witness_group_model.data(witness_group_model.index(i, 0), QtCore.Qt.DisplayRole)
-                         for i in range(witness_group_model.rowCount())]
-
-        n_days = (len(self._excel_dataframe.columns) - 1)//7
+        n_days = self._excel_dataframe.n_days
         days = ['J{}'.format(i) for i in range(n_days)]
         properties = ['J{}-{}'.format(i, selected_property) for i in range(n_days)]
 
-        data = collections.OrderedDict()
-        for zone in zones:
-            fylter = self._excel_dataframe['Souris'].isin(witness_group)
-            for day in days:
-                column = '{}-Zone'.format(day)
-                fylter &= self._excel_dataframe[column].isin(zone)
+        statistics = {}
+        statistics['mean'] = collections.OrderedDict()
+        statistics['std'] = collections.OrderedDict()
+        statistics['n'] = collections.OrderedDict()
 
-            data[zone] = self._excel_dataframe[fylter][properties]
-            # Add the E zone values of the other selected groups to the witness values
-            if 'E' in zone:
-                for i, (_, model, selected) in enumerate(self._groups):
-                    if not selected:
-                        continue
-
-                    if i == self._group_control:
-                        continue
-
-                    group_contents = [model.data(model.index(i, 0), QtCore.Qt.DisplayRole) for i in range(model.rowCount())]
-
-                    fylter = self._excel_dataframe['Souris'].isin(group_contents)
-                    for day in days:
-                        column = '{}-Zone'.format(day)
-                        fylter &= self._excel_dataframe[column].isin(['E'])
-
-                    data[zone] = pd.concat([data[zone], self._excel_dataframe[fylter][properties]])
-
-            data[zone].columns = days
-
-        witness_df = collections.OrderedDict()
-        for k, v in data.items():
-            witness_df[''.join(k)] = v.apply(np.nanmean, axis=0)
-
-        witness_df = pd.DataFrame(witness_df).T
-
-        self._reduced_data[witness_group_name] = witness_df
-
-    def _set_gather_target_group_data(self, selected_property, zones):
-        """
-        """
-
-        n_days = (len(self._excel_dataframe.columns) - 1)//7
-        days = ['J{}'.format(i) for i in range(n_days)]
-        properties = ['J{}-{}'.format(i, selected_property) for i in range(n_days)]
-
+        # Loop over the group
         for i, (group_name, model, selected) in enumerate(self._groups):
 
-            if i == self._group_control:
-                continue
-
+            # If the group is not selected, skip it
             if not selected:
                 continue
-            group_contents = [model.data(model.index(i, 0), QtCore.Qt.DisplayRole) for i in range(model.rowCount())]
 
-            target_df = pd.DataFrame(index=days)
+            # Fetch from mice that compose the running group
+            mice_in_group = [model.data(model.index(i, 0), QtCore.Qt.DisplayRole) for i in range(model.rowCount())]
+
+            mean_df = pd.DataFrame(index=days)
+            std_df = pd.DataFrame(index=days)
+            n_df = pd.DataFrame(index=days)
+            # Loop over the zone
             for tz in zones:
-                fylter = self._excel_dataframe['Souris'].isin(group_contents)
-                for day in days:
-                    zone = '{}-Zone'.format(day)
-                    fylter &= self._excel_dataframe[zone].isin(tz)
+                # Build a filter for filtering the data frame for the selected mice and zones
+                fylter = self._excel_dataframe['Souris'].isin(mice_in_group) & self._excel_dataframe['Zone'].isin(tz)
 
                 name = ''.join(tz)
-                target_df[name] = self._excel_dataframe[fylter][properties].apply(np.nanmean, axis=0).values
+                mean_df[name] = self._excel_dataframe[fylter][properties].apply(np.nanmean, axis=0).values
+                std_df[name] = self._excel_dataframe[fylter][properties].apply(np.nanstd, axis=0).values
+                n_df[name] = len(mice_in_group)
 
-            self._reduced_data[group_name] = target_df.T
+            statistics['mean'][group_name] = mean_df.T
+            statistics['std'][group_name] = std_df.T
+            statistics['n'][group_name] = n_df.T
 
-    def _compute_student_test(self, selected_property):
-        """Compute the student test.
+        return statistics
+
+    def get_student_tests(self, selected_property, zones):
+        """Compute the student test for a selected property.
         """
 
-        n_days = (len(self._excel_dataframe.columns) - 1)//7
-        days = ['J{}'.format(i) for i in range(n_days)]
+        student_tests = collections.OrderedDict()
 
-        control_zones = (('A', 'B', 'C', 'D', 'E'), ('A', 'B'), ('C', 'D', 'E'))
-        target_zones = (('A', 'B', 'C', 'D'), ('A', 'B'), ('C', 'D'))
-        zones = list(zip(control_zones, target_zones))
+        days = ['J{}'.format(i) for i in range(self._excel_dataframe.n_days)]
 
         progress_bar.reset(len(zones))
 
-        for izone, (control_zone, target_zone) in enumerate(zones):
+        for izone, zone in enumerate(zones):
 
-            name = '{} vs {}'.format(''.join(control_zone), ''.join(target_zone))
+            name = '{} vs {}'.format(''.join(zone), ''.join(zone))
 
-            self._student_tests[name] = collections.OrderedDict()
+            student_tests[name] = collections.OrderedDict()
 
             for day in days:
 
-                column = '{}-Zone'.format(day)
                 prop = '{}-{}'.format(day, selected_property)
 
                 value_per_group = pd.DataFrame(columns=['groups', 'values'])
@@ -169,37 +129,22 @@ class GroupsModel(QtCore.QAbstractListModel):
                         continue
 
                     selected_group_names.append(group_name)
-                    mice = [model.data(model.index(i, 0), QtCore.Qt.DisplayRole) for i in range(model.rowCount())]
+                    mice_in_group = [model.data(model.index(i, 0), QtCore.Qt.DisplayRole) for i in range(model.rowCount())]
 
-                    selected_zone = control_zone if i == self._group_control else target_zone
-
-                    fylter = self._excel_dataframe['Souris'].isin(mice) & self._excel_dataframe[column].isin(selected_zone)
+                    fylter = self._excel_dataframe['Souris'].isin(mice_in_group) & self._excel_dataframe['Zone'].isin(zone)
                     for v in self._excel_dataframe[prop][fylter]:
                         value_per_group = pd.concat([value_per_group, pd.DataFrame([[group_name, v]], columns=['groups', 'values'])])
 
                 try:
-                    self._student_tests[name][day] = sk.posthoc_ttest(value_per_group, val_col='values', group_col='groups', p_adjust='holm')
+                    student_tests[name][day] = sk.posthoc_ttest(value_per_group, val_col='values', group_col='groups', p_adjust='holm')
                 except:
                     logging.error('Can not compute student test for group {} and day {}. Skip it.'.format(name, day))
-                    self._student_tests[name][day] = pd.DataFrame(np.nan, index=selected_group_names, columns=selected_group_names)
+                    student_tests[name][day] = pd.DataFrame(np.nan, index=selected_group_names, columns=selected_group_names)
                     continue
 
             progress_bar.update(izone+1)
 
-    def compute_statistics(self, selected_property):
-        """
-        """
-
-        if self._group_control < 0 or self._group_control >= len(self._groups):
-            logging.error('Invalid group control value')
-            return None
-
-        self._reduced_data.clear()
-        self._student_tests.clear()
-
-        self._set_gather_control_group_data(selected_property, (('A', 'B', 'C', 'D', 'E'), ('A', 'B'), ('C', 'D', 'E')))
-        self._set_gather_target_group_data(selected_property, (('A', 'B', 'C', 'D'), ('A', 'B'), ('C', 'D')))
-        self._compute_student_test(selected_property)
+        return student_tests
 
     def data(self, index, role):
         """Get the data at a given index for a given role.
@@ -228,9 +173,6 @@ class GroupsModel(QtCore.QAbstractListModel):
         elif role == QtCore.Qt.CheckStateRole:
             return QtCore.Qt.Checked if selected else QtCore.Qt.Unchecked
 
-        elif role == QtCore.Qt.ForegroundRole:
-            return QtGui.QBrush(QtCore.Qt.red) if idx == self._group_control else QtGui.QBrush(QtCore.Qt.black)
-
         elif role == GroupsModel.model:
             return model
 
@@ -247,26 +189,6 @@ class GroupsModel(QtCore.QAbstractListModel):
         default_flags = super(GroupsModel, self).flags(index)
 
         return QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEditable | default_flags
-
-    @ property
-    def group_control(self):
-
-        return self._group_control
-
-    @ group_control.setter
-    def group_control(self, index):
-        """Set the group control.
-
-        Args:
-            index (int): the index of the group control
-        """
-
-        if index < 0 or index >= self.rowCount():
-            return
-
-        self._group_control = index
-
-        self.layoutChanged.emit()
 
     @ property
     def groups(self):
@@ -381,10 +303,3 @@ class GroupsModel(QtCore.QAbstractListModel):
 
         self._groups.sort(key=lambda x: x[0])
         self.layoutChanged.emit()
-
-    @ property
-    def student_tests(self):
-        """Returns the student tests.
-        """
-
-        return self._student_tests

@@ -1,5 +1,8 @@
 import logging
 import os
+import re
+
+import xlrd
 
 import numpy as np
 
@@ -40,47 +43,89 @@ class ExcelFilesModel(QtCore.QAbstractListModel):
             logging.info('The file {} is already stored in the model'.format(excel_file))
             return
 
-        # Any exception must be caught here
-        try:
-            data_frame = pd.read_excel(excel_file, sheet_name='Groupe', header=(0, 1))
+        # Fetch the shhet names
+        xls = xlrd.open_workbook(excel_file, on_demand=True)
+        sheet_names = xls.sheet_names()
+        group_sheets = [sheet for sheet in sheet_names if re.match(r'^groupe.*', sheet.strip(), re.I)]
 
-            n_mice = len(data_frame.index)//5
+        data_frame = pd.DataFrame([])
 
-            for i in range(n_mice):
-                data_frame.loc[5*i+1:5*(i+1)-1, ('Unnamed: 0_level_0', 'Souris')] = data_frame.loc[5*i, ('Unnamed: 0_level_0', 'Souris')]
-            data_frame[('Unnamed: 0_level_0', 'Souris')] = data_frame[('Unnamed: 0_level_0', 'Souris')].astype(int)
+        for group_sheet in group_sheets:
 
-            n_days = (len(data_frame.columns) - 1)//11
+            # Any exception must be caught here
+            try:
 
-            for i in range(n_days):
-                day = 'J{:d}'.format(i)
+                df = pd.read_excel(excel_file, sheet_name=group_sheet, header=(0, 1))
 
+                n_mice = len(df.index)//5
+
+                df = df.drop(('Unnamed: 0_level_0', 'Num expé'), axis=1)
+
+                # Expand the souris number for all zones and not only zone A such as zone A B C D E for a given mouse have the same mouse number
                 for i in range(n_mice):
-                    data_frame.loc[5*i+1:5*(i+1)-1, (day, 'Poids')] = data_frame.loc[5*i, (day, 'Poids')]
+                    df.loc[5*i+1:5*(i+1)-1, ('Unnamed: 1_level_0', 'Souris')] = df.loc[5*i, ('Unnamed: 1_level_0', 'Souris')]
+                df[('Unnamed: 1_level_0', 'Souris')] = df[('Unnamed: 1_level_0', 'Souris')].astype(int)
 
-                data_frame[(day, 'Erythème')] = data_frame[[(day, 'Erythème'), (day, 'Erythème.1')]].agg(np.nanmean, axis=1)
-                data_frame = data_frame.drop((day, 'Erythème.1'), axis=1)
-                data_frame[(day, 'ITA')] = data_frame[[(day, 'ITA'), (day, 'ITA.1')]].agg(np.nanmean, axis=1)
-                data_frame = data_frame.drop((day, 'ITA.1'), axis=1)
-                data_frame[(day, 'Vapometer')] = data_frame[[(day, 'Vapometer'), (day, 'Vapometer.1')]].agg(np.nanmean, axis=1)
-                data_frame = data_frame.drop((day, 'Vapometer.1'), axis=1)
-                data_frame[(day, 'Moister Meter')] = data_frame[[(day, 'Moister Meter'), (day, 'Moister Meter.1')]].agg(np.nanmean, axis=1)
-                data_frame = data_frame.drop((day, 'Moister Meter.1'), axis=1)
+                # Guess the number of days from the last column value
+                match = re.match('J(\d+)', df.columns[-1][0])
+                if not match:
+                    raise
+                n_days = int(match.groups()[0]) + 1
 
-            # Check and correct for redundant mice names
-            mice_names = [data_frame.iloc[5*i, 0] for i in range(n_mice)]
-            mice_names = [str(v) + '_' + str(mice_names[:i].count(v) + 1) if mice_names.count(v) > 1 else str(v) for i, v in enumerate(mice_names)]
-            for i in range(n_mice):
-                data_frame.iloc[5*i:5*i+5, 0] = mice_names[i]
+                # Guess the number of properties by
+                # Substracting the Souris and Zone columns to the total number of columns --> m
+                # m = 2 + 2*n_properties because Pods and Surface properties are not duplicated
+                n_properties = ((len(df.columns) - 2)//n_days - 2)//2
 
-            columns = data_frame.columns
-            columns = ['-'.join(col) for col in columns]
-            columns[0] = 'Souris'
-            data_frame.columns = columns
+                # Find the duplicate properties
+                duplicate_properties = []
+                for _, prop in df.columns[2:]:
+                    if prop.strip()[-2:] == '.1':
+                        prop = prop.split('.1')[0]
+                        if prop not in duplicate_properties:
+                            duplicate_properties.append(prop)
 
-            data_frame = data_frame.round(1)
-        except:
-            raise ExcelFileModelError('The file {} could not be properly imported'.format(excel_file))
+                # Loop over the days
+                for i in range(n_days):
+                    day = 'J{:d}'.format(i)
+
+                    # Expand the weight which is written in only one 1 of 5 consecutive rows
+                    for i in range(n_mice):
+                        df.loc[5*i+1:5*(i+1)-1, (day, 'Poids')] = df.loc[5*i, (day, 'Poids')]
+
+                    # For each duplicate property, compute the average
+                    for p in duplicate_properties:
+                        df[(day, p)] = df[[(day, p), (day, '{}.1'.format(p))]].agg(np.nanmean, axis=1)
+
+                # Remove the second instance of the duplicate (the one that ends with .1)
+                for p in duplicate_properties:
+                    df = df.drop('{}.1'.format(p), axis=1, level=1)
+
+                columns = df.columns
+                columns = ['-'.join(col) for col in columns]
+                columns[0] = 'Souris'
+                columns[1] = 'Zone'
+                df.columns = columns
+
+                data_frame = pd.concat([data_frame, df])
+
+            except:
+                raise ExcelFileModelError('The file {} could not be properly imported'.format(excel_file))
+
+        n_mice = len(data_frame.index)//5
+
+        # Check and correct for redundant mice names
+        data_frame['Souris'] = data_frame['Souris'].astype(int)
+        mice_names = [data_frame.iloc[5*i, 0] for i in range(n_mice)]
+        mice_names = [str(v) + '_' + str(mice_names[:i].count(v) + 1) if mice_names.count(v) > 1 else str(v)
+                      for i, v in enumerate(mice_names)]
+        for i in range(n_mice):
+            data_frame.iloc[5*i:5*i+5, 0] = mice_names[i]
+
+        data_frame = data_frame.round(1)
+
+        setattr(data_frame, 'n_days', n_days)
+        setattr(data_frame, 'n_properties', n_properties)
 
         self._excel_files.append((excel_file, data_frame, GroupsModel(data_frame, self)))
 

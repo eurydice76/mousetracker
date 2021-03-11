@@ -42,13 +42,15 @@ class PlotDialog(QtWidgets.QDialog):
         self._build_widgets()
         self._build_layout()
 
-    def set_dataframes(self, dataframes):
+    def set_data(self, selected_property, data):
         """
         """
 
         self._axes.clear()
 
-        for group_name, dataframe in dataframes.items():
+        self._axes.set_ylabel(selected_property)
+
+        for group_name, dataframe in data.items():
             for index in dataframe.index:
                 self._axes.plot(dataframe.loc[index], linestyle='-', marker='^', label='{} - {}'.format(group_name, index))
 

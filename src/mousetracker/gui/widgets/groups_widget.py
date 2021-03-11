@@ -4,17 +4,16 @@ import logging
 from PyQt5 import QtCore, QtWidgets
 
 from mousetracker.gui.dialogs.group_contents_dialog import GroupContentsDialog
-from mousetracker.gui.dialogs.plot_dialog import PlotDialog
 from mousetracker.gui.views.droppable_listview import DroppableListView
 from mousetracker.gui.views.groups_listview import GroupsListView
-from mousetracker.gui.widgets.student_tests_widget import StudentTestsWidget
-from mousetracker.gui.widgets.summary_widget import SummaryWidget
 from mousetracker.kernel.models.available_samples_model import AvailableSamplesModel
 from mousetracker.kernel.models.excel_files_model import ExcelFilesModel
 from mousetracker.kernel.models.groups_model import GroupsModel
 
 
 class GroupsWidget(QtWidgets.QWidget):
+
+    compute_statistics = QtCore.pyqtSignal(str, GroupsModel)
 
     def __init__(self, main_window, *args, **kwargs):
 
@@ -31,8 +30,9 @@ class GroupsWidget(QtWidgets.QWidget):
         self._new_group_pushbutton.clicked.connect(self.on_create_new_group)
         self._sort_groups_pushbutton.clicked.connect(self.on_sort_groups)
         self._reset_groups_pushbutton.clicked.connect(self.on_clear)
-        self._groups_listview.model().display_group_contents.connect(self.on_display_group_contents)
+        self._groups_listview.display_group_contents.connect(self.on_display_group_contents)
         self._compute_statistics_pushbutton.clicked.connect(self.on_compute_statistics)
+        self._export_all_pushbutton.clicked.connect(self.on_export_all)
 
     def _build_layout(self):
         """Build the layout of the widget.
@@ -67,10 +67,9 @@ class GroupsWidget(QtWidgets.QWidget):
         hlayout.addWidget(self._selected_property_label)
         hlayout.addWidget(self._selected_property_combobox, stretch=1)
         hlayout.addWidget(self._compute_statistics_pushbutton, stretch=3)
+        hlayout.addWidget(self._export_all_pushbutton, stretch=3)
 
         main_layout.addLayout(hlayout, stretch=1)
-
-        main_layout.addWidget(self._tabs, stretch=4)
 
         self.setLayout(main_layout)
 
@@ -104,13 +103,7 @@ class GroupsWidget(QtWidgets.QWidget):
 
         self._compute_statistics_pushbutton = QtWidgets.QPushButton('Compute statistics')
 
-        self._tabs = QtWidgets.QTabWidget(self)
-
-        self._summary_widget = SummaryWidget(self)
-        self._student_tests_widget = StudentTestsWidget(self)
-
-        self._tabs.addTab(self._summary_widget, 'Summary')
-        self._tabs.addTab(self._student_tests_widget, 'Student tests')
+        self._export_all_pushbutton = QtWidgets.QPushButton('Export all')
 
     def _init_ui(self):
         """Initialize the ui.
@@ -144,17 +137,7 @@ class GroupsWidget(QtWidgets.QWidget):
             logging.error('No excel files selected')
             return
 
-        groups_model.compute_statistics(selected_property)
-        reduced_data = groups_model.reduced_data
-        if not reduced_data:
-            return
-
-        self._summary_widget.set_data_frames(reduced_data)
-        self._student_tests_widget.set_student_tests(groups_model.student_tests)
-
-        dialog = PlotDialog(self)
-        dialog.set_dataframes(reduced_data)
-        dialog.show()
+        self.compute_statistics.emit(selected_property, groups_model)
 
     def on_create_new_group(self):
         """Event handler which creates a new group.
@@ -171,7 +154,7 @@ class GroupsWidget(QtWidgets.QWidget):
             groups_model.add_group(group)
 
     def on_display_group_contents(self, index):
-        """Event handler called when the user double click on group item. Pops up a dialog which shows the contents of the selected group.
+        """Event handler called when the user right clicks on a group item. Pops up a dialog which shows the contents of the selected group.
 
         Args:
             index (PyQt5.QtCore.QModelIndex): the selected item
@@ -209,6 +192,22 @@ class GroupsWidget(QtWidgets.QWidget):
         samples_per_group_model = self._samples_per_group_listview.model()
         if samples_per_group_model is not None:
             samples_per_group_model.clear()
+
+    def on_export_all(self):
+        """Export the data, the groups, the statistics and the student tests performed for all properties
+        """
+
+        excel_file = QtWidgets.QFileDialog.getSaveFileName(self, caption='Export data as ...', filter="Excel files (*.xls *.xlsx)")
+        if not excel_file:
+            return
+
+        excel_file = excel_file[0]
+        if not excel_file:
+            return
+
+        all_properties = [self._selected_property_combobox.itemText(i) for i in range(self._selected_property_combobox.count())]
+
+        self._main_window.export(excel_file, all_properties)
 
     def on_load_groups(self, samples, groups):
         """Event handler which loads sent rawdata model to the widget tableview.

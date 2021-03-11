@@ -17,8 +17,7 @@ class GroupContentsDialog(QtWidgets.QDialog):
         fylter = data_frame['Souris'].isin(self._selected_mice)
 
         # Build the column names corresponding to the selected property
-        n_days = (len(data_frame.columns) - 1)//7
-        selected_columns = ['Souris'] + ['J{}-{}'.format(i, self._selected_property) for i in range(n_days)]
+        selected_columns = ['Souris'] + ['J{}-{}'.format(i, self._selected_property) for i in range(data_frame.n_days)]
 
         self._data_frame = data_frame[fylter][selected_columns]
 
