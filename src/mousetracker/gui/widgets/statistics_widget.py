@@ -25,7 +25,7 @@ class StatisticsWidget(QtWidgets.QWidget):
         self.setToolTip('statistics for {} property'.format(self._selected_property))
 
         # Compute the student test once for all for saving time later on
-        self._student_tests = self._groups_model.get_student_tests(self._selected_property, [('A', 'B', 'C', 'D'), ('A', 'B'), ('C', 'D'), ('E',)])
+        self._student_tests = self._groups_model.get_student_tests(self._selected_property, self._groups_model.get_student_tests_zones())
 
         self._init_ui()
 
@@ -103,7 +103,7 @@ class StatisticsWidget(QtWidgets.QWidget):
 
         self._selected_zone_label = QtWidgets.QLabel('Zone')
         self._selected_zone_combobox = CheckableComboBox()
-        self._selected_zone_combobox.addItems(['ABCDE', 'ABCD', 'AB', 'CD', 'E'])
+        self._selected_zone_combobox.addItems([''.join(v) for v in self._groups_model.get_statistics_zones()])
 
         self._plot_button = QtWidgets.QPushButton('Plot')
 

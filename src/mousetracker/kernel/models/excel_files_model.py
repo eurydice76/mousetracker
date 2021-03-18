@@ -1,3 +1,4 @@
+import collections
 import logging
 import os
 import re
@@ -55,43 +56,48 @@ class ExcelFilesModel(QtCore.QAbstractListModel):
             # Any exception must be caught here
             try:
 
+                # Read the excel spreadsheet
                 df = pd.read_excel(excel_file, sheet_name=group_sheet, header=(0, 1))
 
-                n_mice = len(df.index)//5
+                # Find the number of zones (this must always be the 3rd column of the file)
+                zones = list(collections.OrderedDict.fromkeys(df.iloc[:, 2]))
+                n_zones = len(zones)
 
+                # Retrieve the name of the animal (e.g. Lapin, Souris). Take care this is a 2-level column name
+                animal = df.columns[1][1]
+
+                # For rabbit files there is an extra header column (Exposé)
+                n_header_properties = 3 if animal == 'Lapins' else 2
+
+                n_animals = len(df.index)//n_zones
+
+                # Drop the first column
                 df = df.drop(('Unnamed: 0_level_0', 'Num expé'), axis=1)
 
                 # Expand the souris number for all zones and not only zone A such as zone A B C D E for a given mouse have the same mouse number
-                for i in range(n_mice):
-                    df.loc[5*i+1:5*(i+1)-1, ('Unnamed: 1_level_0', 'Souris')] = df.loc[5*i, ('Unnamed: 1_level_0', 'Souris')]
-                df[('Unnamed: 1_level_0', 'Souris')] = df[('Unnamed: 1_level_0', 'Souris')].astype(int)
+                for i in range(n_animals):
+                    df.loc[n_zones*i+1:n_zones*(i+1)-1, ('Unnamed: 1_level_0', animal)] = df.loc[n_zones*i, ('Unnamed: 1_level_0', animal)]
+                df[('Unnamed: 1_level_0', animal)] = df[('Unnamed: 1_level_0', animal)].astype(int)
 
-                # Guess the number of days from the last column value
-                match = re.match('J(\d+)', df.columns[-1][0])
-                if not match:
-                    raise
-                n_days = int(match.groups()[0]) + 1
+                # Find the unique days
+                days = [col[0] for col in df.columns[n_header_properties:]]
+                days = list(collections.OrderedDict.fromkeys(days))
+                n_days = len(days)
 
-                # Guess the number of properties by
-                # Substracting the Souris and Zone columns to the total number of columns --> m
-                # m = 2 + 2*n_properties because Pods and Surface properties are not duplicated
-                n_properties = ((len(df.columns) - 2)//n_days - 2)//2
-
-                # Find the duplicate properties
+                # Find the duplicate properties i.e. the ones which are written through two columns in the excel file
                 duplicate_properties = []
-                for _, prop in df.columns[2:]:
+                for _, prop in df.columns[n_header_properties:]:
                     if prop.strip()[-2:] == '.1':
                         prop = prop.split('.1')[0]
                         if prop not in duplicate_properties:
                             duplicate_properties.append(prop)
 
                 # Loop over the days
-                for i in range(n_days):
-                    day = 'J{:d}'.format(i)
+                for day in days:
 
-                    # Expand the weight which is written in only one 1 of 5 consecutive rows
-                    for i in range(n_mice):
-                        df.loc[5*i+1:5*(i+1)-1, (day, 'Poids')] = df.loc[5*i, (day, 'Poids')]
+                    # Expand the Poid which is written in only one cell
+                    for i in range(n_animals):
+                        df.loc[n_zones*i+1:n_zones*(i+1)-1, (day, 'Poids')] = df.loc[n_zones*i, (day, 'Poids')]
 
                     # For each duplicate property, compute the average
                     for p in duplicate_properties:
@@ -103,29 +109,41 @@ class ExcelFilesModel(QtCore.QAbstractListModel):
 
                 columns = df.columns
                 columns = ['-'.join(col) for col in columns]
-                columns[0] = 'Souris'
+                columns[0] = animal
                 columns[1] = 'Zone'
+                if animal == 'Lapins':
+                    columns[2] = 'Exposé'
                 df.columns = columns
+
+                # Retrieve all the unique properties
+                properties = list(collections.OrderedDict.fromkeys([col.split('-')[-1] for col in df.columns[n_header_properties:]]))
+                n_properties = len(properties)
 
                 data_frame = pd.concat([data_frame, df])
 
             except:
                 raise ExcelFileModelError('The file {} could not be properly imported'.format(excel_file))
 
-        n_mice = len(data_frame.index)//5
+        n_total_animals = len(data_frame.index)//n_zones
 
-        # Check and correct for redundant mice names
-        data_frame['Souris'] = data_frame['Souris'].astype(int)
-        mice_names = [data_frame.iloc[5*i, 0] for i in range(n_mice)]
-        mice_names = [str(v) + '_' + str(mice_names[:i].count(v) + 1) if mice_names.count(v) > 1 else str(v)
-                      for i, v in enumerate(mice_names)]
-        for i in range(n_mice):
-            data_frame.iloc[5*i:5*i+5, 0] = mice_names[i]
+        # Check and correct for redundant animal names
+        data_frame[animal] = data_frame[animal].astype(int)
+        animal_names = [data_frame.iloc[n_zones*i, 0] for i in range(n_animals)]
+        animal_names = [str(v) + '_' + str(animal_names[:i].count(v) + 1) if animal_names.count(v) > 1 else str(v)
+                        for i, v in enumerate(animal_names)]
+        for i in range(n_total_animals):
+            data_frame.iloc[n_zones*i:n_zones*i+n_zones, 0] = animal_names[i]
 
         data_frame = data_frame.round(1)
 
         setattr(data_frame, 'n_days', n_days)
+        setattr(data_frame, 'days', days)
         setattr(data_frame, 'n_properties', n_properties)
+        setattr(data_frame, 'properties', properties)
+        setattr(data_frame, 'n_zones', n_zones)
+        setattr(data_frame, 'zones', zones)
+        setattr(data_frame, 'animal', animal)
+        setattr(data_frame, 'n_header_properties', n_header_properties)
 
         self._excel_files.append((excel_file, data_frame, GroupsModel(data_frame, self)))
 

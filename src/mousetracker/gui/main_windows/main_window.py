@@ -316,11 +316,14 @@ class MainWindow(QtWidgets.QMainWindow):
         excel_file_contents_model = self._excel_file_contents_tableview.model()
         excel_file_contents_model.set_data_frame(data_frame)
 
-        mice = data_frame['Souris'][0::5].to_list()
+        animal = data_frame.animal
+        n_zones = data_frame.n_zones
 
-        self.set_groups_model.emit(groups_model, mice)
+        animals = data_frame[animal][0::n_zones].to_list()
 
-        properties = sorted(set([v.split('-')[1] for v in data_frame.columns[2:]]))
+        self.set_groups_model.emit(groups_model, animals)
+
+        properties = data_frame.properties
         self.set_properties.emit(properties)
 
     def export(self, filename, selected_properties):
@@ -354,8 +357,7 @@ class MainWindow(QtWidgets.QMainWindow):
         for prop in selected_properties:
             statistics_sheet = workbook.create_sheet('statistics {}'.format(prop))
 
-            all_zones = [('A', 'B', 'C', 'D', 'E'), ('A', 'B', 'C', 'D'), ('A', 'B'), ('C', 'D'), ('E',)]
-
+            all_zones = groups_model.get_statistics_zones()
             statistics = groups_model.get_statistics(prop, all_zones)
 
             comp = 1
@@ -385,7 +387,8 @@ class MainWindow(QtWidgets.QMainWindow):
             student_test_sheet.cell(row=comp, column=1).value = 'selected property'
             student_test_sheet.cell(row=comp, column=2).value = prop
 
-            student_tests = groups_model.get_student_tests(prop, [('A', 'B', 'C', 'D'), ('A', 'B'), ('C', 'D'), ('E',)])
+            student_tests_zones = groups_model.get_student_tests_zones()
+            student_tests = groups_model.get_student_tests(prop, student_tests_zones)
 
             for zone, df_dict in student_tests.items():
                 comp += 1

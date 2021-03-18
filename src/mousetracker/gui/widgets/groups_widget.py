@@ -43,7 +43,7 @@ class GroupsWidget(QtWidgets.QWidget):
         groups_layout = QtWidgets.QHBoxLayout()
 
         vlayout = QtWidgets.QVBoxLayout()
-        vlayout.addWidget(QtWidgets.QLabel('Available mice'))
+        vlayout.addWidget(QtWidgets.QLabel('Available animals'))
         vlayout.addWidget(self._available_samples_listview)
         groups_layout.addLayout(vlayout)
 
@@ -56,7 +56,7 @@ class GroupsWidget(QtWidgets.QWidget):
         groups_layout.addLayout(vlayout)
 
         vlayout = QtWidgets.QVBoxLayout()
-        vlayout.addWidget(QtWidgets.QLabel('Mice in group'))
+        vlayout.addWidget(QtWidgets.QLabel('Animals in group'))
         vlayout.addWidget(self._samples_per_group_listview)
         groups_layout.addLayout(vlayout)
 

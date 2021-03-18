@@ -1,4 +1,5 @@
 import collections
+import itertools
 import logging
 
 import numpy as np
@@ -50,6 +51,43 @@ class GroupsModel(QtCore.QAbstractListModel):
 
         self.reset()
 
+    def get_zones_combinations(self):
+
+        zones = self._excel_dataframe.zones
+
+        combinations = []
+        for i in range(1, len(zones)+1):
+            for comb in itertools.combinations(zones, r=i):
+                combinations.append(''.join(comb))
+
+        return combinations
+
+    def get_statistics_zones(self):
+        """Return the zones used for the statistics.
+        """
+
+        animal = self._excel_dataframe.animal
+
+        if animal == 'Souris':
+            return [('A', 'B', 'C', 'D', 'E'), ('A', 'B', 'C', 'D'), ('A', 'B'), ('C', 'D'), ('E',)]
+        elif animal == 'Lapins':
+            return [('G', 'D'), ('G',), ('D',)]
+        else:
+            return []
+
+    def get_student_tests_zones(self):
+        """Return the zones used for the student tests.
+        """
+
+        animal = self._excel_dataframe.animal
+
+        if animal == 'Souris':
+            return [('A', 'B', 'C', 'D'), ('A', 'B'), ('C', 'D'), ('E',)]
+        elif animal == 'Lapins':
+            return [('G',), ('D')]
+        else:
+            return []
+
     def get_statistics(self, selected_property, zones):
         """Average the data for a selected property for different zones
 
@@ -61,9 +99,9 @@ class GroupsModel(QtCore.QAbstractListModel):
             collections.OrderedDict: the average data per group
         """
 
-        n_days = self._excel_dataframe.n_days
-        days = ['J{}'.format(i) for i in range(n_days)]
-        properties = ['J{}-{}'.format(i, selected_property) for i in range(n_days)]
+        animal = self._excel_dataframe.animal
+        days = self._excel_dataframe.days
+        properties = ['{}-{}'.format(day, selected_property) for day in days]
 
         statistics = {}
         statistics['mean'] = collections.OrderedDict()
@@ -86,7 +124,7 @@ class GroupsModel(QtCore.QAbstractListModel):
             # Loop over the zone
             for tz in zones:
                 # Build a filter for filtering the data frame for the selected mice and zones
-                fylter = self._excel_dataframe['Souris'].isin(mice_in_group) & self._excel_dataframe['Zone'].isin(tz)
+                fylter = self._excel_dataframe[animal].isin(mice_in_group) & self._excel_dataframe['Zone'].isin(tz)
 
                 name = ''.join(tz)
                 mean_df[name] = self._excel_dataframe[fylter][properties].apply(np.nanmean, axis=0).values
@@ -105,7 +143,9 @@ class GroupsModel(QtCore.QAbstractListModel):
 
         student_tests = collections.OrderedDict()
 
-        days = ['J{}'.format(i) for i in range(self._excel_dataframe.n_days)]
+        animal = self._excel_dataframe.animal
+
+        days = self._excel_dataframe.days
 
         progress_bar.reset(len(zones))
 
@@ -131,7 +171,7 @@ class GroupsModel(QtCore.QAbstractListModel):
                     selected_group_names.append(group_name)
                     mice_in_group = [model.data(model.index(i, 0), QtCore.Qt.DisplayRole) for i in range(model.rowCount())]
 
-                    fylter = self._excel_dataframe['Souris'].isin(mice_in_group) & self._excel_dataframe['Zone'].isin(zone)
+                    fylter = self._excel_dataframe[animal].isin(mice_in_group) & self._excel_dataframe['Zone'].isin(zone)
                     for v in self._excel_dataframe[prop][fylter]:
                         value_per_group = pd.concat([value_per_group, pd.DataFrame([[group_name, v]], columns=['groups', 'values'])])
 

@@ -34,12 +34,15 @@ class MouseMonitoringModel(PandasDataModel):
 
             row = index.row()
 
+            animal = self._data_frame.animal
+
             # Compute the mouse number as it appears in the 'Souris' column
-            mouse = self._data_frame.iloc[row, 0]
-            df = self._data_frame[self._data_frame['Souris'] == mouse]
+            animal_id = self._data_frame.iloc[row, 0]
+            df = self._data_frame[self._data_frame[animal] == animal_id]
             n_days = self._data_frame.n_days
             n_properties = self._data_frame.n_properties
-            weight_columns = list(range(2, n_days*n_properties, n_properties))
+            n_header_properties = self._data_frame.n_header_properties
+            weight_columns = list(range(n_header_properties, n_days*n_properties + n_header_properties, n_properties))
 
             weights = df.iloc[0, weight_columns]
             initial_weight = weights[0]
