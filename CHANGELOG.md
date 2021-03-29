@@ -1,3 +1,7 @@
+version 0.0.8
+--------------
+* ADDED   mousetracker can also read rabbit files
+
 version 0.0.7
 --------------
 * UPDATED the number of days and properties are now guessed when the data is read
