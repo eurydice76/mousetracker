@@ -3,7 +3,7 @@ import logging
 import os
 import re
 
-import xlrd
+import openpyxl
 
 import numpy as np
 
@@ -45,8 +45,8 @@ class ExcelFilesModel(QtCore.QAbstractListModel):
             return
 
         # Fetch the shhet names
-        xls = xlrd.open_workbook(excel_file, on_demand=True)
-        sheet_names = xls.sheet_names()
+        xls = openpyxl.load_workbook(excel_file)
+        sheet_names = xls.sheetnames
         group_sheets = [sheet for sheet in sheet_names if re.match(r'^groupe.*', sheet.strip(), re.I)]
 
         data_frame = pd.DataFrame([])
