@@ -212,7 +212,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 contents = [model.data(model.index(i, 0), QtCore.Qt.DisplayRole) for i in range(model.rowCount())]
                 exported_groups.append((group, contents, selected))
 
-            exportable_data.append({'excel_file': excel_file, 'groups': exported_groups, 'group_control': groups_model.group_control})
+            exportable_data.append({'excel_file': excel_file, 'groups': exported_groups})
 
         with open(yaml_file, 'w') as f:
             yaml.dump(exportable_data, f)
@@ -254,7 +254,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 group_contents_model = groups_model.data(g_index, GroupsModel.model)
                 for item in group_contents:
                     group_contents_model.add_item(item)
-            groups_model.group_control = group_dict['group_control']
 
     def on_open_mousetracker_files(self):
         """Event handler which opens a dialog for selecting data files.

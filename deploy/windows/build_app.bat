@@ -39,6 +39,7 @@ rem install dependencies
 %pip_exe% install scipy
 %pip_exe% install scikit-posthocs
 %pip_exe% install xlrd
+%pip_exe% install xlwt
 
 rem remove unused file for the bundle to reduce its size
 rmdir /S /Q %target_dir%\Lib\site-packages\matplotlib\tests
