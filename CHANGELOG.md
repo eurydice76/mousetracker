@@ -1,3 +1,9 @@
+version 0.0.9
+--------------
+* FIXED   bug when exporting and importing groups
+* FIXED   bug when exporting data
+* FIXED   mousetracker can now read any excel files format
+
 version 0.0.8
 --------------
 * ADDED   mousetracker can also read rabbit files
