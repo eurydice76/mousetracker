@@ -230,4 +230,4 @@ class StatisticsWidget(QtWidgets.QWidget):
 
         self._averages_tableview.setModel(None)
         self._stds_tableview.setModel(None)
-        self._n_tableview.setModel(None)
+        self._ns_tableview.setModel(None)
