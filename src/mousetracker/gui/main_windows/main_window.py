@@ -329,6 +329,12 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         """
 
+        _, ext = os.path.splitext(filename)
+
+        if ext != '.xlsx':
+            logging.error('Invalid file extension. Must be .xlsx')
+            return
+
         # Export the current data to 'data' sheet
         index = self._excel_files_listview.currentIndex()
         excel_files_model = self._excel_files_listview.model()
