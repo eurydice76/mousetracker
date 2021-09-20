@@ -1,0 +1,9 @@
+# mousetracker
+
+mousetracker is a PyQt-based GUI application to perform statistical analysis for 
+physiological parameters taken from rabbits which undergo intoxication by sarin 
+neurotoxic.
+
+## Installation
+
+pip install mousetracker
