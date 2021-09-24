@@ -1,3 +1,7 @@
+version 0.0.10
+--------------
+* UPDATED changed file hierarchy
+
 version 0.0.9
 --------------
 * FIXED   bug when exporting and importing groups
